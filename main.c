@@ -28,33 +28,75 @@ int mainMenu(){
 void trataEnter(char string[]){
 	int len;
 	len = strlen(string) - 1;
-	string[len] = '\0';
+	if(string[len] == '\n') string[len] = '\0';
 }
 
-void criaColuna(int numCampos, FILE *arquivo){
-	char nomeColuna[30], tipo;
-	int tamanho;
+int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
+	char nomeColuna[50], tipo, buffer[100];
+	int tamCol = 0, tamChar;
 	
-	printf("Digite o nome da %d coluna ", numCampos);
 
+	printf("Digite o nome da %d coluna (max 30 caracteres): ", numCampos);
+	
 
+	do{
+		if(!fgets(nomeColuna, 50, stdin)) printf("Erro na leitura");
+	} while(strlen(nomeColuna) <= 1);
+
+	trataEnter(nomeColuna);	
+	if(strlen(nomeColuna) > 30) nomeColuna[30] = '\0';
+
+	tamCol += strlen(nomeColuna);
+
+	printf("Digite o tipo da coluna %s: \nC - Char\nI - Integer\nF - Float\n", nomeColuna);
+	do{
+		scanf(" %c", &tipo);
+	} while ((tipo != 'c') && (tipo != 'i') && (tipo != 'f'));
+
+	if(tipo == 'c'){
+		printf("Digite a quantidade de caracteres da coluna %s: ", nomeColuna);	// CALCULAR
+		do{
+			scanf(" %d", &tamChar);
+		} while(tamChar <= 0 || tamChar > 500);
+		
+		*tamSlot += tamChar;
+		
+	} else {
+		*tamSlot += 4;
+		tamChar = 0;
+	}
+	
+		sprintf(buffer,",%s!%c:", nomeColuna, tipo);
+		fwrite(buffer, sizeof(char), strlen(nomeColuna), arquivo);
+		fwrite(&tamChar, sizeof(int), 1, arquivo);
+	
+	return tamCol;
 }
 
 void criarTabela(FILE *arquivo){
-	int len, numCampos = 1, controlCampos = 1;
-	char nomeTable[50];	
-	
-	clean_stdin();
+	int len, numCampos = 1, controlCampos = 1, tam = 8;
+	char nomeTable[50], espaco = ' ';	
+	int tamSlot = 0;
+
 	do {
 		printf("Digite o nome da sua tabela(tamanho max 30): ");
 		if(!fgets(nomeTable, 50, stdin)) printf("Erro na leitura");
 	} while (strlen(nomeTable) <= 1);
+
 	trataEnter(nomeTable);
+	if(strlen(nomeTable) > 30) nomeTable[30] = '\0';
+	tam += strlen(nomeTable);
+
 	
-	printf("Criacao de Campos(nao e necessario inserir a coluna id):\n\n");
-	printf("Tabela - %s\n", nomeTable);
+	printf("Tabela - %s\n\n", nomeTable);
+	printf("Criacao de Colunas(nao e necessario inserir a coluna id)\n\n");
 	
-	criaColuna(numCampos, arquivo);
+	
+	for(int i = 0; i < 8; i++){
+		fwrite(&espaco, sizeof(char), 1, arquivo); 
+	}
+	fwrite(nomeTable, sizeof(char), strlen(nomeTable), arquivo);
+	tam += criaColuna(numCampos, arquivo, &tamSlot);
 	
 	do {
 		printf("Deseja criar mais algum campo?\n1 - Sim\n0 - Nao\n");
@@ -64,12 +106,17 @@ void criarTabela(FILE *arquivo){
 		} while ((controlCampos != 1) && (controlCampos != 0));
 		
 		if(controlCampos){
-			criaColuna(++numCampos, arquivo);
+			tam += criaColuna(++numCampos, arquivo, &tamSlot);
 		} 
 			
 		
 	} while(controlCampos == 1);
 
+	fseek(arquivo, 0, SEEK_SET);
+	fwrite(&tam, sizeof(int), 1, arquivo);
+	fwrite(&tamSlot, sizeof(int), 1, arquivo);
+	printf("\n\n%d\n\n%d", tam, tamSlot);
+	return;
 
 };
 
