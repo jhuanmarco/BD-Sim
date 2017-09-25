@@ -75,7 +75,12 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	return tamCol;
 }
 
-void criarTabela(FILE *arquivo){
+
+int calculaBitmap(int tamSlot){
+	
+}	
+
+int criarTabela(FILE *arquivo){
 	int len, numCampos = 1, controlCampos = 1, tam = 8;
 	char nomeTable[50], espaco = ' ';	
 	int tamSlot = 0;
@@ -114,18 +119,26 @@ void criarTabela(FILE *arquivo){
 		
 	} while(controlCampos == 1);
 
+	
+
 	fseek(arquivo, 0, SEEK_SET);
 	fwrite(&tam, sizeof(int), 1, arquivo);
 	fwrite(&tamSlot, sizeof(int), 1, arquivo);
 		
+	if(tamSlot + 9 > 4096) {
+		printf("Tabela não possível de ser implementada");
+		return -1;
+	};
+	
 	fclose(arquivo);
+	
 		
-	return;
+	return ;
 
 };
 
 void main(){
-	int initMenu, menu; 
+	int initMenu, menu, setTable; 
 	
 	FILE *rt, *wt;
 	
@@ -133,7 +146,11 @@ void main(){
 	
 	if(!rt) {	//se nao existe o arquivo tabela.dat ainda, entao cria
 		wt = fopen("tabela.dat", "w+b");
-		criarTabela(wt);
+		setTable = criarTabela(wt);
+		if (setTable == -1) {
+			printf("Tabela impossivel ser criada, excede tamanho maximo");
+			return;
+		}
 	} else {	//caso exista, então vai para o menu inicial
 		do {
 			initMenu = init();
@@ -143,7 +160,11 @@ void main(){
 		
 		if(initMenu == 9) {	//se quiser excluir os dados antigos e trabalhar numa tabela nova
 			wt = fopen("tabela.dat", "w+b");
-			criarTabela(wt);
+			setTable = criarTabela(wt);
+			if (setTable == -1) {
+				printf("Tabela impossivel de ser criada, excede tamanho maximo");
+				return;
+			}
 		} else {	//caso queira trabalhar com a tabela ja criada
 		 	wt = fopen("tabela.dat", "r+b");	
 		}
@@ -161,7 +182,7 @@ void main(){
 	if(wt == NULL) printf("\n\ntambeieh");
 
 	FILE *opa = fopen("tabela.dat", "rb");
-	fseek(opa, 21, SEEK_SET);
+	fseek(opa, 9, SEEK_SET);
 	char amigo[50];
 
 	fread(amigo, sizeof(char), 5, opa);
