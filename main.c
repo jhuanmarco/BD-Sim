@@ -138,7 +138,7 @@ int criarTabela(FILE *arquivo){
 	char nomeTable[50], espaco = ' ';	
 	int tamSlot = 0;
 
-	clean_stdin();
+	
 	do {
 		printf("Digite o nome da sua tabela(tamanho max 30): ");
 		if(!fgets(nomeTable, 50, stdin)) printf("Erro na leitura");
@@ -190,6 +190,59 @@ int criarTabela(FILE *arquivo){
 
 };
 
+
+
+void adicionaRegistro(char caminho[]){
+	FILE *arquivo = fopen(caminho, "r+b");
+	char nomeTabela[50];
+	int tamHeader, tamSlot, i = -1, j=-1;
+	int numPagina, numSlot;
+	char camposNome[99][99];
+	int tamanhoCampos[99];
+	char tipoCampos[99];
+	char verificador, ignora;
+
+	fread(&tamHeader, sizeof(int),1, arquivo);
+	fread(&tamSlot, sizeof(int), 1, arquivo);
+	
+	do{
+		i++;
+		fread(&nomeTabela[i], sizeof(char), 1, arquivo);
+	} while(nomeTabela[i] != ',');
+	
+	nomeTabela[i] = '\0';
+
+	i = -1;
+			
+	do{
+		i++;
+		j=-1;
+
+		do{
+			j++;
+			fread(&camposNome[i][j], sizeof(char), 1, arquivo);
+		} while (camposNome[i][j] != '!');
+		
+		camposNome[i][j] = '\0';
+		printf("\n\n%s\n\n", camposNome[i]);
+		
+		fread(&tipoCampos[i], sizeof(char), 1, arquivo);
+		fread(&ignora, sizeof(char), 1, arquivo);
+		fread(&tamanhoCampos[i], sizeof(int), 1, arquivo);
+		fread(&verificador, sizeof(char), 1, arquivo); 
+
+	} while(verificador == ','); 
+
+	i++; //i possui a quantidade de campos
+
+	printf("\n\n A tabela %s possui %d campos:\n", nomeTabela, i);
+	for(j = 0; j < i; j++){
+		printf("nome %s\n tipo %c\n tamanho %d\n", camposNome[j], tipoCampos[j], tamanhoCampos[j]); 
+	}
+
+	printf("\n\n");
+}
+
 void main(){
 	int initMenu, menu, setTable; 
 	
@@ -198,6 +251,7 @@ void main(){
 	rt = fopen("tabela.dat", "r");
 	
 	if(!rt) {	//se nao existe o arquivo tabela.dat ainda, entao cria
+		
 		wt = fopen("tabela.dat", "w+b");
 		setTable = criarTabela(wt);
 		if (setTable == -1) {
@@ -229,6 +283,12 @@ void main(){
 
 	do {
 		menu = mainMenu();
+
+		switch(menu){
+			case 1:
+				adicionaRegistro("tabela.dat");
+			break;
+		}
 
 	} while(menu != 0);
 	
