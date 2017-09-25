@@ -31,8 +31,11 @@ void trataEnter(char string[]){
 	string[len] = '\0';
 }
 
-void criaCampo(int numCampos, FILE *arquivo){
-	printf("Digite o nome do %d campo ", numCampos);
+void criaColuna(int numCampos, FILE *arquivo){
+	char nomeColuna[30], tipo;
+	int tamanho;
+	
+	printf("Digite o nome da %d coluna ", numCampos);
 
 
 }
@@ -42,15 +45,16 @@ void criarTabela(FILE *arquivo){
 	char nomeTable[50];	
 	
 	clean_stdin();
-	printf("Digite o nome da sua tabela(tamanho max 30): ");
-	
-	if(!fgets(nomeTable, 50, stdin)) printf("Erro na leitura");
+	do {
+		printf("Digite o nome da sua tabela(tamanho max 30): ");
+		if(!fgets(nomeTable, 50, stdin)) printf("Erro na leitura");
+	} while (strlen(nomeTable) <= 1);
 	trataEnter(nomeTable);
 	
-	printf("Criacao de Campos(nao e necessario inserir o campo id):\n\n");
+	printf("Criacao de Campos(nao e necessario inserir a coluna id):\n\n");
 	printf("Tabela - %s\n", nomeTable);
 	
-	criaCampo(numCampos, arquivo);
+	criaColuna(numCampos, arquivo);
 	
 	do {
 		printf("Deseja criar mais algum campo?\n1 - Sim\n0 - Nao\n");
@@ -60,7 +64,7 @@ void criarTabela(FILE *arquivo){
 		} while ((controlCampos != 1) && (controlCampos != 0));
 		
 		if(controlCampos){
-			criaCampo(++numCampos, arquivo);
+			criaColuna(++numCampos, arquivo);
 		} 
 			
 		
