@@ -11,6 +11,20 @@ void clean_stdin(void)
     } while (c != '\n' && c != EOF);
 }
 
+void  SetBit( int A[],  int k ){
+      A[k/32] |= 1 << (k%32);  // Set the bit at the k-th position in A[i]
+}
+
+
+void  ClearBit( int A[],  int k ){
+      A[k/32] &= ~(1 << (k%32));
+}
+
+
+int TestBit( int A[],  int k ){
+      return ( (A[k/32] & (1 << (k%32) )) != 0 ) ;     
+}
+
 int init(){
 	int menu;
 	printf("BD Sim:\n\n1 - Manter Arquivos\n9 - Novos Arquivos\n0 - Exit\n"); //caso 9, o banco é refeito
@@ -76,9 +90,48 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 }
 
 
-int calculaBitmap(int tamSlot){
+int calculaBitmap(int tamSlot, int *quantidadeSlots){
+	int tamanhoFinal, qntSlots, qntBits;
+
+	qntSlots = 4091/tamSlot;
+	qntBits = 4091%tamSlot;
 	
+	qntBits /= 4; //espaco em int
+	qntBits *= 32;//cada int armazena 4 bytes, cada 4bytes tenho 32 posicoes
+
+	while(qntSlots > qntBits) {
+		qntSlots--;
+		qntBits = qntBits + ((tamSlot/4) * 32);	
+	}
+	
+	*quantidadeSlots = qntSlots;
+
+	return qntBits;
 }	
+
+void criaPagina(char caminho[], int tamSlot){
+	FILE *arquivo = fopen(caminho, "r+b");
+	int qntBits, deslocamento = -1, zero = 0, qntSlots; //quantidade de slots que a pagina tera
+	fseek(arquivo, 0, SEEK_END);
+
+	char liberaEspaco = ' ', barra = '/';
+	for(int i = 0; i < 4096; i++) {
+		fwrite(&liberaEspaco, sizeof(char), 1, arquivo);
+	}
+	
+	qntBits = calculaBitmap(tamSlot, &qntSlots);
+	deslocamento -= -5*((qntBits/ 32) * 4); //para obter a quantidade de inteiros que preciso salvar
+	
+	fseek(arquivo, deslocamento, SEEK_END);
+	for(int i = 0; i < qntBits/32; i++ ){
+			fwrite(&zero, sizeof(int), 1, arquivo);
+	}
+	
+	fwrite(&qntSlots, sizeof(int), 1, arquivo);
+	fwrite(&barra, sizeof(char), 1, arquivo);
+
+	fclose(arquivo);
+}
 
 int criarTabela(FILE *arquivo){
 	int len, numCampos = 1, controlCampos = 1, tam = 8;
@@ -125,15 +178,15 @@ int criarTabela(FILE *arquivo){
 	fwrite(&tam, sizeof(int), 1, arquivo);
 	fwrite(&tamSlot, sizeof(int), 1, arquivo);
 		
-	if(tamSlot + 9 > 4096) {
+	if(tamSlot > 4087) {
 		printf("Tabela não possível de ser implementada");
 		return -1;
 	};
 	
 	fclose(arquivo);
-	
+	criaPagina("tabela.dat",tamSlot);
 		
-	return ;
+	return 0;
 
 };
 
@@ -165,17 +218,17 @@ void main(){
 				printf("Tabela impossivel de ser criada, excede tamanho maximo");
 				return;
 			}
+
 		} else {	//caso queira trabalhar com a tabela ja criada
 		 	wt = fopen("tabela.dat", "r+b");	
 		}
 	}
 	
 	rt = fopen("tabela.dat", "r+b");
-	
+
+
 	do {
 		menu = mainMenu();
-			
-		
 
 	} while(menu != 0);
 	
