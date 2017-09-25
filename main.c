@@ -33,7 +33,7 @@ void trataEnter(char string[]){
 
 int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	char nomeColuna[50], tipo, buffer[100];
-	int tamCol = 0, tamChar;
+	int tamCol = 1, tamChar;
 	
 
 	printf("Digite o nome da %d coluna (max 30 caracteres): ", numCampos);
@@ -47,6 +47,7 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	if(strlen(nomeColuna) > 30) nomeColuna[30] = '\0';
 
 	tamCol += strlen(nomeColuna);
+	printf("\n\n%d\n\n", tamCol);
 
 	printf("Digite o tipo da coluna %s: \nC - Char\nI - Integer\nF - Float\n", nomeColuna);
 	do{
@@ -67,9 +68,10 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	}
 	
 		sprintf(buffer,",%s!%c:", nomeColuna, tipo);
-		fwrite(buffer, sizeof(char), strlen(nomeColuna), arquivo);
+		tamCol += 7;
+		fwrite(buffer, sizeof(char), strlen(buffer), arquivo);
 		fwrite(&tamChar, sizeof(int), 1, arquivo);
-	
+		printf("\n\n\n%sOPA\n\n\n", nomeColuna);
 	return tamCol;
 }
 
@@ -78,6 +80,7 @@ void criarTabela(FILE *arquivo){
 	char nomeTable[50], espaco = ' ';	
 	int tamSlot = 0;
 
+	clean_stdin();
 	do {
 		printf("Digite o nome da sua tabela(tamanho max 30): ");
 		if(!fgets(nomeTable, 50, stdin)) printf("Erro na leitura");
@@ -86,7 +89,6 @@ void criarTabela(FILE *arquivo){
 	trataEnter(nomeTable);
 	if(strlen(nomeTable) > 30) nomeTable[30] = '\0';
 	tam += strlen(nomeTable);
-
 	
 	printf("Tabela - %s\n\n", nomeTable);
 	printf("Criacao de Colunas(nao e necessario inserir a coluna id)\n\n");
@@ -115,7 +117,9 @@ void criarTabela(FILE *arquivo){
 	fseek(arquivo, 0, SEEK_SET);
 	fwrite(&tam, sizeof(int), 1, arquivo);
 	fwrite(&tamSlot, sizeof(int), 1, arquivo);
-	printf("\n\n%d\n\n%d", tam, tamSlot);
+		
+	fclose(arquivo);
+		
 	return;
 
 };
@@ -154,5 +158,12 @@ void main(){
 
 	} while(menu != 0);
 	
-	
+	if(wt == NULL) printf("\n\ntambeieh");
+
+	FILE *opa = fopen("tabela.dat", "rb");
+	fseek(opa, 21, SEEK_SET);
+	char amigo[50];
+
+	fread(amigo, sizeof(char), 5, opa);
+	printf("\n\n%s\n\n", amigo);
 }
