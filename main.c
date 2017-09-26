@@ -11,24 +11,13 @@ void clean_stdin(void)
     } while (c != '\n' && c != EOF);
 }
 
-void  SetBit( int A[],  int k ){
-      A[k/32] |= 1 << (k%32);  // Set the bit at the k-th position in A[i]
-}
 
-
-void  ClearBit( int A[],  int k ){
-      A[k/32] &= ~(1 << (k%32));
-}
-
-
-int TestBit( int A[],  int k ){
-      return ( (A[k/32] & (1 << (k%32) )) != 0 ) ;     
-}
 
 int init(){
 	int menu;
 	printf("BD Sim:\n\n1 - Manter Arquivos\n9 - Novos Arquivos\n0 - Exit\n"); //caso 9, o banco é refeito
 	scanf(" %d", &menu);
+	clean_stdin();
 	return menu;
 }	
 
@@ -36,6 +25,7 @@ int mainMenu(){
 	int menu;
 	printf("Main Menu:\n\n1 - Adicionar Registro\n2 - Remover Registro\n3 - Printar Registros\n0 - Exit\n");
 	scanf(" %d", &menu);
+	clean_stdin();
 	return menu;
 }
 
@@ -49,7 +39,7 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	char nomeColuna[50], tipo, buffer[100];
 	int tamCol = 1, tamChar;
 	
-
+	
 	printf("Digite o nome da %d coluna (max 30 caracteres): ", numCampos);
 	
 
@@ -72,7 +62,7 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 		printf("Digite a quantidade de caracteres da coluna %s: ", nomeColuna);	// CALCULAR
 		do{
 			scanf(" %d", &tamChar);
-		} while(tamChar <= 0 || tamChar > 500);
+		} while(tamChar <= 0 || tamChar > 4000);
 		
 		*tamSlot += tamChar;
 		
@@ -112,9 +102,19 @@ int calculaBitmap(int tamSlot, int *quantidadeSlots){
 void criaPagina(char caminho[], int tamSlot){
 	FILE *arquivo = fopen(caminho, "r+b");
 	int qntBits, deslocamento = -1, zero = 0, qntSlots; //quantidade de slots que a pagina tera
-	fseek(arquivo, 0, SEEK_END);
-
-	char liberaEspaco = ' ', barra = '/';
+	
+	char liberaEspaco = ' ', barra = '/', compara;
+	
+	fseek(arquivo, -1, SEEK_END);
+	fread(&compara, sizeof(char), 1, arquivo);
+	
+	
+	if(compara == '/') {
+		compara = '*';
+		fseek(arquivo, -1, SEEK_END); //TALVEZ TENHA CAGADO O CODIGO, FAVOR TIRAR SE DER PROBLEMA RSSRRSSRSRSRSRSRSR
+		fwrite(&compara, sizeof(char),1, arquivo);
+	}
+	
 	for(int i = 0; i < 4096; i++) {
 		fwrite(&liberaEspaco, sizeof(char), 1, arquivo);
 	}
@@ -190,7 +190,109 @@ int criarTabela(FILE *arquivo){
 
 };
 
+void  SetBit( int A[],  int k ){
+      A[k/32] |= 1 << (k%32);  // Set the bit at the k-th position in A[i]
+}
 
+
+void  ClearBit( int A[],  int k ){
+      A[k/32] &= ~(1 << (k%32));
+}
+
+
+int TestBit( int A[],  int k ){
+      return ( (A[k/32] & (1 << (k%32) )) != 0 ) ;     
+}
+
+int buscaEndereco(int *endPagina, char caminho[], int tamHeader){ //1 slot é deslocar o header
+
+	int qntSlots, intPonteiro = 0, tamSlot;
+	FILE *arquivo = fopen(caminho, "r+b");
+	FILE *arquivo2;
+	
+	int deslocPonteiro,i,j; 
+	int vetor[1];
+	int test = 0;
+	char testaPonteiro;
+	int deslocaFrente = -1;
+	int controle = 0;
+	
+	
+	fseek(arquivo, 4, SEEK_SET);
+	fwrite(&tamSlot, sizeof(int), 1, arquivo);
+	
+	*endPagina = 0;	
+	deslocPonteiro = tamHeader + 4091;
+
+	do{
+		*endPagina++;
+		fseek(arquivo, deslocPonteiro, SEEK_SET);
+		fwrite(&qntSlots, sizeof(int), 1, arquivo);	
+		fwrite(&testaPonteiro, sizeof(char), 1, arquivo);
+	
+		if(testaPonteiro == '*') intPonteiro = 1; //tem proxima pagina
+	
+		fseek(arquivo, -9, SEEK_CUR);
+	
+		do{
+			
+			deslocaFrente++;
+			
+			fseek(arquivo, (-4*2), SEEK_CUR);
+			fread(vetor, sizeof(int), 1, arquivo);
+			
+			
+			i = 0;
+			
+			do{
+				test = TestBit(vetor, i);
+				
+				if(test == 0) { // se test = 0  tem lugar disponivel
+					fseek(arquivo, -4, SEEK_CUR);
+					fwrite(vetor, sizeof(int), 1, arquivo);
+					SetBit(vetor, i);
+					fclose(arquivo);
+					return i;
+				} 
+			
+				qntSlots--;
+				i++;
+			
+			}while((qntSlots != 0) && (i < 32));
+		
+			
+		}while(qntSlots > 0); //caso nao tenha mais slots na pagina
+			
+			deslocaFrente = deslocaFrente*4+5;
+			fseek(arquivo, deslocaFrente, SEEK_CUR);
+			
+	}while(intPonteiro);
+	
+	*endPagina++;
+	i=0;
+	
+	criaPagina("tabela.txt", tamSlot);
+	arquivo2 = fopen(caminho, "r+a");
+	
+	fseek(arquivo2, -9, SEEK_END);
+	fread(vetor, sizeof(int), 1, arquivo2);
+	SetBit(vetor, i);
+	fseek(arquivo2, -4, SEEK_END);
+	fwrite(vetor, sizeof(int), 1, arquivo2);
+	
+	fclose(arquivo2);
+	
+	return i;
+}
+
+void preparaString(char str[], int tam){
+	int tamanho = strlen(str);
+	while(tamanho < tam){
+		str[tamanho] = ' ';
+		str[tamanho+1] = '\0';
+		tamanho = strlen(str);
+	}	
+}
 
 void adicionaRegistro(char caminho[]){
 	FILE *arquivo = fopen(caminho, "r+b");
@@ -200,8 +302,11 @@ void adicionaRegistro(char caminho[]){
 	char camposNome[99][99];
 	int tamanhoCampos[99];
 	char tipoCampos[99];
+	char *str = malloc(sizeof(char) * 4096);
 	char verificador, ignora;
-
+	int endColuna, endPagina, aux;
+	float auxf;
+	
 	fread(&tamHeader, sizeof(int),1, arquivo);
 	fread(&tamSlot, sizeof(int), 1, arquivo);
 	
@@ -234,14 +339,42 @@ void adicionaRegistro(char caminho[]){
 	} while(verificador == ','); 
 
 	i++; //i possui a quantidade de campos
+	
 
-	printf("\n\n A tabela %s possui %d campos:\n", nomeTabela, i);
+	printf("\n\n A tabela %s possui %d campos:\n", nomeTabela, i);	
+	
+	endColuna = buscaEndereco(&endPagina, "tabela.dat", tamHeader);  //endColuna possui onde deve ser inserido e endPagina possui a pagina
+	
+	fseek(arquivo,tamHeader+(4096*endPagina)+(endColuna*tamSlot),SEEK_SET); //arquivo esta no lugar da insercao
+	
+	
+	
 	for(j = 0; j < i; j++){
-		printf("nome %s\n tipo %c\n tamanho %d\n", camposNome[j], tipoCampos[j], tamanhoCampos[j]); 
+		
+		if(tipoCampos[j] == 'c'){
+			do{
+				printf("Digite a informacao do campo %s (CHAR - Max %d Caractereres):", camposNome[j], tamanhoCampos[j]); 
+				fgets(str, (tamanhoCampos[j] + 2),stdin);
+			} while(strlen(str) <= 1); 
+			
+			trataEnter(str);
+			preparaString(str, tamanhoCampos[j]);
+			fwrite(str, sizeof(char), tamanhoCampos[j], arquivo);
+		} else if(tipoCampos[j] == 'i'){
+			printf("Digite a informacao do campo %s (INT):", camposNome[j]);
+			scanf(" %d", &aux);
+			fwrite(&aux, sizeof(int), 1, arquivo);
+		} else if(tipoCampos[j] == 'f'){
+			printf("Digite a informacao do campo %s (FLOAT):", camposNome[j]);
+			scanf(" %f", &auxf);
+			fwrite(&auxf, sizeof(int), 1, arquivo);
+		}
 	}
+	
+	fclose(arquivo);
 
-	printf("\n\n");
 }
+
 
 void main(){
 	int initMenu, menu, setTable; 
