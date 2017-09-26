@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include<math.h>
 
 void clean_stdin(void)
 {
@@ -35,6 +36,13 @@ void trataEnter(char string[]){
 	if(string[len] == '\n') string[len] = '\0';
 }
 
+
+void ondeEsta(FILE *cade){
+	int aqui = ftell(cade);
+	printf("\n\n\n\nTA NO %d\n\n\n\n", aqui);
+}
+
+
 int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	char nomeColuna[50], tipo, buffer[100];
 	int tamCol = 1, tamChar;
@@ -51,7 +59,6 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 	if(strlen(nomeColuna) > 30) nomeColuna[30] = '\0';
 
 	tamCol += strlen(nomeColuna);
-	printf("\n\n%d\n\n", tamCol);
 
 	printf("Digite o tipo da coluna %s: \nC - Char\nI - Integer\nF - Float\n", nomeColuna);
 	do{
@@ -75,22 +82,24 @@ int criaColuna(int numCampos, FILE *arquivo, int *tamSlot){
 		tamCol += 7;
 		fwrite(buffer, sizeof(char), strlen(buffer), arquivo);
 		fwrite(&tamChar, sizeof(int), 1, arquivo);
-		printf("\n\n\n%sOPA\n\n\n", nomeColuna);
 	return tamCol;
 }
 
-
-int calculaBitmap(int tamSlot, int *quantidadeSlots){
-	int tamanhoFinal, qntSlots, qntBits;
+int calculaBitmap(int tamSlot, int *quantidadeSlots){ // ta ok
+	int tamanhoFinal, qntSlots, qntBits, sobrou;
 
 	qntSlots = 4091/tamSlot;
+	
 	qntBits = 4091%tamSlot;
 	
+	sobrou = qntBits % 4;
 	qntBits /= 4; //espaco em int
+	
 	qntBits *= 32;//cada int armazena 4 bytes, cada 4bytes tenho 32 posicoes
 
 	while(qntSlots > qntBits) {
 		qntSlots--;
+		sobrou = sobrou + tamSlot%4;
 		qntBits = qntBits + ((tamSlot/4) * 32);	
 	}
 	
@@ -99,11 +108,12 @@ int calculaBitmap(int tamSlot, int *quantidadeSlots){
 	return qntBits;
 }	
 
-void criaPagina(char caminho[], int tamSlot){
+void criaPagina(char caminho[], int tamSlot){ //ta ok
 	FILE *arquivo = fopen(caminho, "r+b");
 	int qntBits, deslocamento = -1, zero = 0, qntSlots; //quantidade de slots que a pagina tera
 	
 	char liberaEspaco = ' ', barra = '/', compara;
+	
 	
 	fseek(arquivo, -1, SEEK_END);
 	fread(&compara, sizeof(char), 1, arquivo);
@@ -111,7 +121,7 @@ void criaPagina(char caminho[], int tamSlot){
 	
 	if(compara == '/') {
 		compara = '*';
-		fseek(arquivo, -1, SEEK_END); //TALVEZ TENHA CAGADO O CODIGO, FAVOR TIRAR SE DER PROBLEMA RSSRRSSRSRSRSRSRSR
+		fseek(arquivo, -1, SEEK_END); 
 		fwrite(&compara, sizeof(char),1, arquivo);
 	}
 	
@@ -119,17 +129,22 @@ void criaPagina(char caminho[], int tamSlot){
 		fwrite(&liberaEspaco, sizeof(char), 1, arquivo);
 	}
 	
+	
 	qntBits = calculaBitmap(tamSlot, &qntSlots);
-	deslocamento -= -5*((qntBits/ 32) * 4); //para obter a quantidade de inteiros que preciso salvar
+	
+	qntBits = qntBits/32; //em inteiros
+	
+	deslocamento = -5 -(qntBits * 4); //para obter a quantidade de bytes que preciso deslocar para salvar
 	
 	fseek(arquivo, deslocamento, SEEK_END);
-	for(int i = 0; i < qntBits/32; i++ ){
+	
+	for(int i = 0; i < qntBits; i++ ){
 			fwrite(&zero, sizeof(int), 1, arquivo);
 	}
-	
+		
 	fwrite(&qntSlots, sizeof(int), 1, arquivo);
 	fwrite(&barra, sizeof(char), 1, arquivo);
-
+	
 	fclose(arquivo);
 }
 
@@ -148,8 +163,8 @@ int criarTabela(FILE *arquivo){
 	if(strlen(nomeTable) > 30) nomeTable[30] = '\0';
 	tam += strlen(nomeTable);
 	
-	printf("Tabela - %s\n\n", nomeTable);
-	printf("Criacao de Colunas(nao e necessario inserir a coluna id)\n\n");
+	printf("\nTabela - %s\n", nomeTable);
+	printf("Criacao de Colunas.\n\n");
 	
 	
 	for(int i = 0; i < 8; i++){
@@ -159,7 +174,7 @@ int criarTabela(FILE *arquivo){
 	tam += criaColuna(numCampos, arquivo, &tamSlot);
 	
 	do {
-		printf("Deseja criar mais algum campo?\n1 - Sim\n0 - Nao\n");
+		printf("\nDeseja criar mais algum campo?\n1 - Sim\n0 - Nao\n");
 		
 		do {
 			scanf(" %d", &controlCampos);
@@ -183,8 +198,10 @@ int criarTabela(FILE *arquivo){
 		return -1;
 	};
 	
-	fclose(arquivo);
+	
 	criaPagina("tabela.dat",tamSlot);
+	fclose(arquivo);
+	
 		
 	return 0;
 
@@ -201,58 +218,60 @@ void  ClearBit( int A[],  int k ){
 
 
 int TestBit( int A[],  int k ){
-      return ( (A[k/32] & (1 << (k%32) )) != 0 ) ;     
+      int i = ( (A[k/32] & (1 << (k%32) )) != 0 ) ;     	
+      return i;
 }
 
-int buscaEndereco(int *endPagina, char caminho[], int tamHeader){ //1 slot é deslocar o header
+int buscaEndereco(int *endPagina, char caminho[], int tamHeader){
 
-	int qntSlots, intPonteiro = 0, tamSlot;
+	int qntSlots, intPonteiro = 0, tamSlot, vetor,  deslocaFrente, controle = 0, test = 0, deslocPonteiro,i,j;
 	FILE *arquivo = fopen(caminho, "r+b");
-	FILE *arquivo2;
-	
-	int deslocPonteiro,i,j; 
-	int vetor[1];
-	int test = 0;
+	FILE *arquivo2;	
 	char testaPonteiro;
-	int deslocaFrente = -1;
-	int controle = 0;
 	
 	
 	fseek(arquivo, 4, SEEK_SET);
-	fwrite(&tamSlot, sizeof(int), 1, arquivo);
-	
+	fread(&tamSlot, sizeof(int), 1, arquivo);
 	*endPagina = 0;	
-	deslocPonteiro = tamHeader + 4091;
-
+	deslocPonteiro = 4091;
+	
+	//encontra final da pagina
+	
+	deslocaFrente = -1;
+	
 	do{
-		*endPagina++;
-		fseek(arquivo, deslocPonteiro, SEEK_SET);
-		fwrite(&qntSlots, sizeof(int), 1, arquivo);	
-		fwrite(&testaPonteiro, sizeof(char), 1, arquivo);
-	
+		
+		*endPagina = *endPagina + 1;
+		
+		fseek(arquivo, (tamHeader + (deslocPonteiro * (*endPagina)) + (controle*5)), SEEK_SET);
+		controle++;
+		
+		fread(&qntSlots, sizeof(int), 1, arquivo);
+		
+		fread(&testaPonteiro, sizeof(char), 1, arquivo);
+		
 		if(testaPonteiro == '*') intPonteiro = 1; //tem proxima pagina
-	
-		fseek(arquivo, -9, SEEK_CUR);
-	
+		
+		fseek(arquivo, -1, SEEK_CUR); //pois vai para o final
+		
 		do{
 			
-			deslocaFrente++;
+			deslocaFrente++; //0
 			
 			fseek(arquivo, (-4*2), SEEK_CUR);
-			fread(vetor, sizeof(int), 1, arquivo);
-			
+			fread(&vetor, sizeof(int), 1, arquivo);
 			
 			i = 0;
-			
 			do{
-				test = TestBit(vetor, i);
-				
+				test = TestBit(&vetor, i);
 				if(test == 0) { // se test = 0  tem lugar disponivel
+					SetBit(&vetor, i);
 					fseek(arquivo, -4, SEEK_CUR);
-					fwrite(vetor, sizeof(int), 1, arquivo);
-					SetBit(vetor, i);
+					fwrite(&vetor, sizeof(int), 1, arquivo);
 					fclose(arquivo);
 					return i;
+					
+					
 				} 
 			
 				qntSlots--;
@@ -271,46 +290,34 @@ int buscaEndereco(int *endPagina, char caminho[], int tamHeader){ //1 slot é de
 	*endPagina++;
 	i=0;
 	
-	criaPagina("tabela.txt", tamSlot);
+	criaPagina("tabela.dat", tamSlot);
 	arquivo2 = fopen(caminho, "r+a");
 	
 	fseek(arquivo2, -9, SEEK_END);
-	fread(vetor, sizeof(int), 1, arquivo2);
-	SetBit(vetor, i);
-	fseek(arquivo2, -4, SEEK_END);
-	fwrite(vetor, sizeof(int), 1, arquivo2);
+	fread(&vetor, sizeof(int), 1, arquivo2);
+	SetBit(&vetor, i);
+	fseek(arquivo2, -4, SEEK_CUR);
+	fwrite(&vetor, sizeof(int), 1, arquivo2);
 	
 	fclose(arquivo2);
 	
 	return i;
 }
 
-void preparaString(char str[], int tam){
-	int tamanho = strlen(str);
-	while(tamanho < tam){
-		str[tamanho] = ' ';
-		str[tamanho+1] = '\0';
-		tamanho = strlen(str);
-	}	
-}
-
 void adicionaRegistro(char caminho[]){
 	FILE *arquivo = fopen(caminho, "r+b");
-	char nomeTabela[50];
-	int tamHeader, tamSlot, i = -1, j=-1;
-	int numPagina, numSlot;
+	char nomeTabela[50], tipoCampos[99];
 	char camposNome[99][99];
-	int tamanhoCampos[99];
-	char tipoCampos[99];
 	char *str = malloc(sizeof(char) * 4096);
 	char verificador, ignora;
-	int endColuna, endPagina, aux;
+	int endBitMap, endPagina, aux, aux2, tamHeader, tamSlot, i=-1, j=-1;
+	int tamanhoCampos[99];
 	float auxf;
 	
 	fread(&tamHeader, sizeof(int),1, arquivo);
 	fread(&tamSlot, sizeof(int), 1, arquivo);
 	
-	do{
+	do{ //lendo cabecalho
 		i++;
 		fread(&nomeTabela[i], sizeof(char), 1, arquivo);
 	} while(nomeTabela[i] != ',');
@@ -319,7 +326,7 @@ void adicionaRegistro(char caminho[]){
 
 	i = -1;
 			
-	do{
+	do{ 
 		i++;
 		j=-1;
 
@@ -328,9 +335,7 @@ void adicionaRegistro(char caminho[]){
 			fread(&camposNome[i][j], sizeof(char), 1, arquivo);
 		} while (camposNome[i][j] != '!');
 		
-		camposNome[i][j] = '\0';
-		printf("\n\n%s\n\n", camposNome[i]);
-		
+		camposNome[i][j] = '\0';		
 		fread(&tipoCampos[i], sizeof(char), 1, arquivo);
 		fread(&ignora, sizeof(char), 1, arquivo);
 		fread(&tamanhoCampos[i], sizeof(int), 1, arquivo);
@@ -338,41 +343,275 @@ void adicionaRegistro(char caminho[]){
 
 	} while(verificador == ','); 
 
-	i++; //i possui a quantidade de campos
+	i++; //i possui a quantidade de campos, aqui terminou de ler o cabeçalho
 	
 
-	printf("\n\n A tabela %s possui %d campos:\n", nomeTabela, i);	
+	printf("\n%s:\nA tabela %s possui %d campos:\n", nomeTabela,nomeTabela, i);	
 	
-	endColuna = buscaEndereco(&endPagina, "tabela.dat", tamHeader);  //endColuna possui onde deve ser inserido e endPagina possui a pagina
+	endBitMap = buscaEndereco(&endPagina, "tabela.dat", tamHeader);  //endColuna possui onde deve ser inserido e endPagina possui a pagina
 	
-	fseek(arquivo,tamHeader+(4096*endPagina)+(endColuna*tamSlot),SEEK_SET); //arquivo esta no lugar da insercao
+	fseek(arquivo,tamHeader+(4096*(endPagina-1))+(endBitMap*tamSlot),SEEK_SET); //arquivo esta no lugar da insercao
 	
 	
 	
 	for(j = 0; j < i; j++){
-		
 		if(tipoCampos[j] == 'c'){
-			do{
-				printf("Digite a informacao do campo %s (CHAR - Max %d Caractereres):", camposNome[j], tamanhoCampos[j]); 
-				fgets(str, (tamanhoCampos[j] + 2),stdin);
-			} while(strlen(str) <= 1); 
 			
-			trataEnter(str);
-			preparaString(str, tamanhoCampos[j]);
+			do{
+				printf("\nDigite a Coluna '%s' (CHAR - Max %d Caractereres):", camposNome[j], tamanhoCampos[j]); 	
+				fgets(str, (tamanhoCampos[j] + 2),stdin);
+			} while(strlen(str) <= 1);			
+
+			trataEnter(str);			
+			aux2 = strlen(str);
+					
+			if(tamanhoCampos[j] > aux2){
+				while(tamanhoCampos[j] > aux2){
+					str[aux2] = ' ';
+					aux2++;
+				} 
+				str[aux2] = '\0';
+			} else {
+				str[aux2-1] = '\0';
+			}
+			
 			fwrite(str, sizeof(char), tamanhoCampos[j], arquivo);
+			
 		} else if(tipoCampos[j] == 'i'){
-			printf("Digite a informacao do campo %s (INT):", camposNome[j]);
+			printf("\nDigite a Coluna '%s' (INT):", camposNome[j]);
 			scanf(" %d", &aux);
 			fwrite(&aux, sizeof(int), 1, arquivo);
 		} else if(tipoCampos[j] == 'f'){
-			printf("Digite a informacao do campo %s (FLOAT):", camposNome[j]);
+			printf("\nDigite a Coluna '%s' (FLOAT):", camposNome[j]);
 			scanf(" %f", &auxf);
 			fwrite(&auxf, sizeof(int), 1, arquivo);
 		}
 	}
 	
+	printf("\n\nCadastro realizado com sucesso, RID(%d,%d)\n\n", endPagina, endBitMap+1);
 	fclose(arquivo);
 
+}
+
+
+
+
+void removeRegistro(char caminho[]){
+	FILE *arquivo = fopen(caminho, "r+b");
+	int pagina, bitMap, tamHeader, tamSlot, qntSlots, contPaginas = 1, deslocamento, controle = 0, numInt, numVetor, aux;
+	char separador;
+	
+	
+	fseek(arquivo, 0, SEEK_SET);
+	fread(&tamHeader, sizeof(int), 1, arquivo); 
+	fread(&tamSlot, sizeof(int), 1, arquivo); 
+	
+	fseek(arquivo, -5, SEEK_END);
+	fread(&qntSlots, sizeof(int), 1, arquivo);
+	
+	fseek(arquivo, 0, SEEK_SET);
+	
+	deslocamento = tamHeader + 4095;
+	fseek(arquivo, deslocamento, SEEK_SET);
+	deslocamento = 4095;
+	
+	while(separador == '*'){
+		contPaginas++;
+		fseek(arquivo, deslocamento, SEEK_CUR);
+		fread(&separador, sizeof(char), 1, arquivo);
+	}	
+		
+	do{
+		printf("\nDigite o RID da informação\nPagina: ");
+		scanf(" %d", &pagina);
+		printf("BitMap: ");
+		scanf(" %d", &bitMap);
+	} while(pagina <= 0 || bitMap <= 0);
+	
+	if(bitMap > qntSlots){
+		printf("\nSlot Inexistente\n");
+		return;
+	}
+	
+	if(pagina > contPaginas){
+		printf("\nPagina Inexistente\n");
+		return;
+	}
+	
+	controle = pagina-1;
+	deslocamento = tamHeader + controle*5 + pagina*4091;
+	fseek(arquivo,deslocamento,SEEK_SET);
+	
+	numInt = bitMap/32;
+	deslocamento = (numInt*4) + 4;
+	deslocamento *= -1;
+	
+	fseek(arquivo,deslocamento,SEEK_CUR);
+	fread(&numInt, sizeof(int), 1, arquivo);
+	
+	numVetor = bitMap%32;
+	aux = TestBit(&numInt, numVetor-1);
+	if(aux == 0) {
+		printf("\nSlot já vazio\n");
+		return;
+	} 
+	
+	ClearBit(&numInt, numVetor-1);
+	fseek(arquivo,-4,SEEK_CUR);
+	fwrite(&numInt, sizeof(int), 1, arquivo);
+	
+	fclose(arquivo);
+	printf("\nSlot limpo com sucesso\n");
+}
+
+void printa(int pag, int slot, char caminho[]){
+	char nomeTabela[50], tipoCampos[99];
+	char camposNome[99][99];
+	char *charAux = malloc(sizeof(char)*4095); 
+	char ignora, verificador;
+	int i=-1, j=-1, k, tamHeader, tamslot, deslocamento, intAux;
+	int tamanhoCampos[99];
+	float floatAux;
+	
+	
+	FILE *arquivo = fopen(caminho, "r+b");
+	
+	fread(&tamHeader, sizeof(int), 1, arquivo);
+	fread(&tamslot, sizeof(int), 1, arquivo);
+	
+	do{ //lendo cabecalho
+		i++;
+		fread(&nomeTabela[i], sizeof(char), 1, arquivo);
+	} while(nomeTabela[i] != ',');
+	
+	nomeTabela[i] = '\0';
+
+	i = -1;
+			
+	do{ 
+		i++;
+		j=-1;
+
+		do{
+			j++;
+			fread(&camposNome[i][j], sizeof(char), 1, arquivo);
+		} while (camposNome[i][j] != '!');
+		
+		camposNome[i][j] = '\0';		
+		fread(&tipoCampos[i], sizeof(char), 1, arquivo);
+		fread(&ignora, sizeof(char), 1, arquivo);
+		fread(&tamanhoCampos[i], sizeof(int), 1, arquivo);
+		fread(&verificador, sizeof(char), 1, arquivo); 
+
+	} while(verificador == ','); 
+	
+	i++;
+
+	deslocamento = tamHeader + (pag*4096) + (slot*tamslot);
+	fseek(arquivo, deslocamento, SEEK_SET);
+	
+	for(j = 0; j < i; j++){
+		printf("%s - ", camposNome[j]);
+		if(tipoCampos[j] == 'c'){
+			for(k = 0; k < tamanhoCampos[j]; k++){
+				fread(&charAux[k], sizeof(char), 1, arquivo);			
+			}
+			charAux[k] = '\0';
+			printf("%s\n",charAux); 
+		} else if(tipoCampos[j] == 'i'){
+		
+			fread(&intAux, sizeof(int), 1, arquivo);
+			printf("%d\n",intAux); 
+			
+		} else if(tipoCampos[j] == 'f'){
+		
+			fread(&floatAux, sizeof(int), 1, arquivo);
+			printf("%f\n",floatAux); 	
+		}	
+	}
+	
+	
+}
+
+void printaRegistros(char caminho[]){
+	int i=-1, j=-1, k;
+	int tamHeader, tamSlot, deslocamento, controle = 0, auxSlots, qntSlots, deslocamentoInterno, vetor, test, testaProx, pagBusca, slotBusca;
+	char prox;
+	char nomeTabela[50];
+	
+	FILE *arquivo = fopen(caminho, "r+b");
+	
+	fread(&tamHeader, sizeof(int), 1, arquivo);
+	fread(&tamSlot, sizeof(int), 1, arquivo);
+	
+	printf(" \n\n%d\n\n", tamHeader);
+	
+	
+	
+	do{
+		i++;
+		fread(&nomeTabela[i], sizeof(char), 1, arquivo);
+	} while(nomeTabela[i] != ',');
+	
+	
+	
+	nomeTabela[i] = '\0';
+	printf(" \n\n%s\n\n", nomeTabela);
+
+	fseek(arquivo, -5, SEEK_END);
+	fread(&qntSlots, sizeof(int), 1, arquivo);
+	
+	printf(" \n\n%d\n\n", qntSlots);
+	controle = 0; // == pag 1
+	
+	fseek(arquivo, 0, SEEK_SET);
+	
+	ondeEsta(arquivo);
+	
+	do {	
+		auxSlots = qntSlots;
+		printf(" \n\n%d\n\n", auxSlots);
+		deslocamento = tamHeader + ((controle+1)*4096);
+		ondeEsta(arquivo);
+		fseek(arquivo, deslocamento, SEEK_SET);
+		ondeEsta(arquivo);
+		fseek(arquivo, -1, SEEK_CUR);
+		ondeEsta(arquivo);
+		fread(&prox, sizeof(char), 1, arquivo);
+		ondeEsta(arquivo);
+		
+		if(prox == '*') {
+			testaProx = 1;
+		} else { 
+			testaProx = 0;
+		}
+		// para baixo
+		do {	
+			fseek(arquivo, -1, SEEK_CUR);
+			deslocamentoInterno = -2*4;
+			fseek(arquivo, deslocamentoInterno, SEEK_CUR); //aponta o int para ler
+			fread(&vetor, sizeof(int), 1, arquivo);
+			
+			k = 0;
+			do{
+				test = TestBit(&vetor, k);
+				printf(" %d\n", test);
+				if(test == 1) { // se test = 1 printa
+					pagBusca = controle + 1;
+					slotBusca = k +1;			
+					printf("RID(%d,%d):\n", pagBusca, slotBusca);
+					printa(controle, k, caminho);					
+				}
+				
+				auxSlots--;
+				k++;
+			} while((k < 32) && (auxSlots < qntSlots)); 
+			
+		} while (auxSlots < qntSlots);
+		
+		controle ++;
+		
+	} while (testaProx == 1); 
 }
 
 
@@ -421,16 +660,18 @@ void main(){
 			case 1:
 				adicionaRegistro("tabela.dat");
 			break;
+			case 2: 
+				removeRegistro("tabela.dat");
+			break;
+			case 3:
+				printaRegistros("tabela.dat");
+			break;
+			case 0:
+			
+			break;
 		}
 
 	} while(menu != 0);
 	
-	if(wt == NULL) printf("\n\ntambeieh");
-
-	FILE *opa = fopen("tabela.dat", "rb");
-	fseek(opa, 9, SEEK_SET);
-	char amigo[50];
-
-	fread(amigo, sizeof(char), 5, opa);
-	printf("\n\n%s\n\n", amigo);
+	fclose(rt);
 }
