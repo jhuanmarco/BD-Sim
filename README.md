@@ -1,6 +1,7 @@
 # BD Simulator
 
-Simulação de gerência de paginas e registro utilizando estrutura de Bitmap
+Simulação de gerência de paginas e registros utilizando estrutura de Bitmap
+
 ## Funcionamento
 Cada pagina contém 4096 Bytes, sendo:
 - 5 + X Bytes de cada paginas reservado para a configuração
